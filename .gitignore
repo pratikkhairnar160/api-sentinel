@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.cache/
+*.log
+.DS_Store
+~/.api-sentinel/
+*.db
+*.AppImage
+*.deb

@@ -1,0 +1,44 @@
+{
+  "name": "api-sentinel",
+  "version": "1.0.0",
+  "description": "GUI-based API Key Security Assessment Tool for authorized penetration testing",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --linux",
+    "lint": "eslint src/ --ext .js",
+    "test": "node tests/analyzer.test.js",
+    "cli": "node cli.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "better-sqlite3": "^9.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "puppeteer": "^21.0.0",
+    "uuid": "^9.0.0",
+    "pdfkit": "^0.14.0",
+    "winston": "^3.11.0",
+    "p-limit": "^5.0.0",
+    "p-queue": "^8.0.1",
+    "robots-parser": "^3.0.1",
+    "tldts": "^6.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
+    "eslint": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.security.api-sentinel",
+    "productName": "APISentinel",
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Security"
+    },
+    "files": ["main.js", "preload.js", "src/**/*", "gui/**/*"]
+  },
+  "author": "Security Team",
+  "license": "MIT",
+  "keywords": ["security", "pentest", "api-keys", "crawler", "kali-linux"]
+}

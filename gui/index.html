@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:">
+<title>APISentinel</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ── Top Bar ──────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-icon">⬡</span>
+      <span class="brand-name">API<strong>Sentinel</strong></span>
+      <span class="brand-version">v1.0.0</span>
+    </div>
+    <nav class="topbar-nav">
+      <button class="nav-btn active" data-view="scan">SCAN</button>
+      <button class="nav-btn" data-view="findings">FINDINGS</button>
+      <button class="nav-btn" data-view="assets">ASSETS</button>
+      <button class="nav-btn" data-view="history">HISTORY</button>
+    </nav>
+    <div class="topbar-right">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-label" id="statusLabel">IDLE</span>
+    </div>
+  </header>
+
+  <!-- ── Main Layout ──────────────────────────────────────────────────── -->
+  <main class="layout">
+
+    <!-- ── LEFT SIDEBAR: Config Panel ───────────────────────────────── -->
+    <aside class="sidebar" id="configPanel">
+      <div class="panel-header">TARGET CONFIGURATION</div>
+
+      <div class="field-group">
+        <label class="field-label">Target URL</label>
+        <input type="text" id="targetUrl" class="field-input" placeholder="https://example.com" spellcheck="false">
+      </div>
+
+      <div class="field-row">
+        <div class="field-group half">
+          <label class="field-label">Crawl Mode</label>
+          <select id="scanMode" class="field-select">
+            <option value="auto">Auto Detect</option>
+            <option value="static">Static (Fast)</option>
+            <option value="puppeteer">Puppeteer (JS)</option>
+          </select>
+        </div>
+        <div class="field-group half">
+          <label class="field-label">Max Depth</label>
+          <input type="number" id="maxDepth" class="field-input" value="4" min="1" max="10">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group half">
+          <label class="field-label">Max Pages</label>
+          <input type="number" id="maxPages" class="field-input" value="150" min="10" max="1000">
+        </div>
+        <div class="field-group half">
+          <label class="field-label">Delay (ms)</label>
+          <input type="number" id="delayMs" class="field-input" value="400" min="100" max="5000">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label toggle-label">
+          <span>Live Key Validation</span>
+          <label class="toggle">
+            <input type="checkbox" id="validateKeys" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+        <p class="field-hint">Non-destructive read-only probes only</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label toggle-label">
+          <span>Entropy Detection</span>
+          <label class="toggle">
+            <input type="checkbox" id="entropyMode" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+        <p class="field-hint">Heuristic detection of unknown secrets</p>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="btnStart">▶ START SCAN</button>
+        <button class="btn-danger hidden" id="btnStop">■ STOP</button>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-section" id="progressSection" style="display:none">
+        <div class="panel-header">SCAN PROGRESS</div>
+        <div class="phase-label" id="phaseLabel">Initializing...</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar" style="width:0%"></div>
+        </div>
+        <div class="progress-stats">
+          <div class="pstat"><div class="pstat-n" id="statPages">0</div><div class="pstat-l">Pages</div></div>
+          <div class="pstat"><div class="pstat-n" id="statScripts">0</div><div class="pstat-l">Scripts</div></div>
+          <div class="pstat"><div class="pstat-n" id="statKeys">0</div><div class="pstat-l">Findings</div></div>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="export-section" id="exportSection" style="display:none">
+        <div class="panel-header">EXPORT REPORT</div>
+        <div class="export-btns">
+          <button class="btn-export" id="btnExportJson">JSON</button>
+          <button class="btn-export" id="btnExportHtml">HTML</button>
+          <button class="btn-export" id="btnExportPdf">PDF</button>
+        </div>
+      </div>
+
+      <!-- Risk Summary -->
+      <div class="risk-summary" id="riskSummary" style="display:none">
+        <div class="panel-header">RISK SUMMARY</div>
+        <div class="risk-bars">
+          <div class="risk-row">
+            <span class="risk-label critical">CRITICAL</span>
+            <div class="risk-bar-wrap"><div class="risk-bar critical" id="barCritical"></div></div>
+            <span class="risk-count" id="cntCritical">0</span>
+          </div>
+          <div class="risk-row">
+            <span class="risk-label high">HIGH</span>
+            <div class="risk-bar-wrap"><div class="risk-bar high" id="barHigh"></div></div>
+            <span class="risk-count" id="cntHigh">0</span>
+          </div>
+          <div class="risk-row">
+            <span class="risk-label medium">MEDIUM</span>
+            <div class="risk-bar-wrap"><div class="risk-bar medium" id="barMedium"></div></div>
+            <span class="risk-count" id="cntMedium">0</span>
+          </div>
+          <div class="risk-row">
+            <span class="risk-label low">LOW</span>
+            <div class="risk-bar-wrap"><div class="risk-bar low" id="barLow"></div></div>
+            <span class="risk-count" id="cntLow">0</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── RIGHT CONTENT AREA ────────────────────────────────────────── -->
+    <section class="content-area">
+
+      <!-- ── VIEW: SCAN (Live Terminal Log) ────────────────────────── -->
+      <div class="view active" id="view-scan">
+        <div class="view-header">
+          <span>LIVE ACTIVITY</span>
+          <button class="btn-ghost" id="btnClearLog">CLEAR</button>
+        </div>
+        <div class="terminal-wrap">
+          <div class="terminal" id="terminalLog">
+            <div class="terminal-welcome">
+              <pre class="ascii-art">
+  ___   ___  ____  __               __  _          _
+ / _ | / _ \/  _/ / /  ___ ___ ___/ /_(_)__  ___ (_)
+/ __ |/ ___// /  / /__/ -_) _ \/ __/ __/ _ \/ -_) /
+/_/ |_/_/  /___/ /____/\__/_//_/\__/\__/_//_/\__/_/
+              </pre>
+              <p class="welcome-msg">API Key Security Assessment Tool</p>
+              <p class="welcome-sub">Configure a target and start a scan to begin.</p>
+              <p class="welcome-warn">⚠  For authorized security testing only</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIEW: FINDINGS TABLE ───────────────────────────────────── -->
+      <div class="view" id="view-findings">
+        <div class="view-header">
+          <span>FINDINGS (<span id="findingsCount">0</span>)</span>
+          <div class="filter-row">
+            <select id="filterRisk" class="filter-select">
+              <option value="">All Risk Levels</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <select id="filterValidation" class="filter-select">
+              <option value="">All Statuses</option>
+              <option value="valid">Valid</option>
+              <option value="invalid">Invalid</option>
+              <option value="restricted">Restricted</option>
+            </select>
+            <input type="text" id="filterSearch" class="filter-input" placeholder="Filter by service or URL...">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="findingsTable">
+            <thead>
+              <tr>
+                <th class="th-risk">RISK</th>
+                <th>SERVICE</th>
+                <th>MASKED KEY</th>
+                <th>SOURCE URL</th>
+                <th>LINE</th>
+                <th>TYPE</th>
+                <th>VALIDATION</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="findingsTbody">
+              <tr class="empty-row"><td colspan="8">No findings yet. Start a scan to discover API keys.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── VIEW: ASSETS ───────────────────────────────────────────── -->
+      <div class="view" id="view-assets">
+        <div class="view-header">
+          <span>CRAWLED ASSETS</span>
+          <div class="assets-tabs">
+            <button class="tab-btn active" data-tab="pages">PAGES (<span id="tabPagesCount">0</span>)</button>
+            <button class="tab-btn" data-tab="scripts">SCRIPTS (<span id="tabScriptsCount">0</span>)</button>
+            <button class="tab-btn" data-tab="api">API CALLS (<span id="tabApiCount">0</span>)</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="assetsTable">
+            <thead>
+              <tr id="assetsTableHead">
+                <th>URL</th><th>DEPTH</th><th>STATUS</th><th>SCRIPTS</th>
+              </tr>
+            </thead>
+            <tbody id="assetsTbody">
+              <tr class="empty-row"><td colspan="4">No assets crawled yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── VIEW: HISTORY ─────────────────────────────────────────── -->
+      <div class="view" id="view-history">
+        <div class="view-header"><span>SCAN HISTORY</span></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>TARGET</th><th>MODE</th><th>STARTED</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+            <tbody id="historyTbody">
+              <tr class="empty-row"><td colspan="5">No scan history.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ── Detail Modal ──────────────────────────────────────────────────── -->
+  <div class="modal-overlay hidden" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="modalTitle">Finding Detail</span>
+        <button class="modal-close" id="btnModalClose">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- ── Toast ────────────────────────────────────────────────────────── -->
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
